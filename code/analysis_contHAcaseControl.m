@@ -1,5 +1,7 @@
 % Analyze continuous headache data
 
+Pfizer_dataBasePath = getpref('continuousHA','pfizerDataPath');
+
 load([Pfizer_dataBasePath '/continuousHAcasecontrol_cleanICHD-3.mat'])
 load([Pfizer_dataBasePath '/confirmedDX_contHAcaseControl.mat'])
 

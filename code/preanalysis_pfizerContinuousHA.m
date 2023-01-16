@@ -1,6 +1,8 @@
 % Pre-analysis of continuous headache subjects from Pfizer headache
 % registry, for case-control study comparing PPTH, NDPH, and Migraine
 
+Pfizer_dataBasePath = getpref('continuousHA','pfizerDataPath');
+
 load([Pfizer_dataBasePath '/PfizerHAdataJun17Feb22.mat'])
 
 % calculate age at the time of filling out the form in days
