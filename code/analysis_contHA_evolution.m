@@ -9,15 +9,23 @@ load([Pfizer_dataBasePath '/PfizerHAdataJun17Feb22.mat'])
 HA = data((data.p_current_ha_pattern == 'cons_flare' | data.p_current_ha_pattern == 'cons_same') & ...
     data.age>=6 & data.age<18,:);
 
+% Get rid of entries with continuous headache for <3 months
+HA = HA(HA.p_con_pattern_duration=='1to2y'|HA.p_con_pattern_duration=='2to3y'|...
+    HA.p_con_pattern_duration=='3to6mo'|HA.p_con_pattern_duration=='3yrs'|...
+    HA.p_con_pattern_duration=='6to12mo',:);
+
+% get rid of NDPH
+HA = HA(HA.p_dx_overall_cat~=2 & HA.p_dx_overall_cat~=3,:);
+
+% get rid of PTH
+HA = HA(HA.p_dx_overall_cat~=6,:);
+
 % Get rid of entries with missing data for duration to continuous
 HA = HA(HA.p_con_start_epi_time=='1to2y'|HA.p_con_start_epi_time=='2to3y'|HA.p_con_start_epi_time=='2to4wk'|...
     HA.p_con_start_epi_time=='2wks'|HA.p_con_start_epi_time=='3to6mo'|HA.p_con_start_epi_time=='3yrs'|...
     HA.p_con_start_epi_time=='4to8wk'|HA.p_con_start_epi_time=='6to12mo',:);
 
-% Get rid of entries with continuous headache for <3 months
-HA = HA(HA.p_con_pattern_duration=='1to2y'|HA.p_con_pattern_duration=='2to3y'|...
-    HA.p_con_pattern_duration=='3to6mo'|HA.p_con_pattern_duration=='3yrs'|...
-    HA.p_con_pattern_duration=='6to12mo',:);
+
 
 
 HA.allodynia = sum(table2array(HA(:,817:820)),2); % clinician entered data
@@ -30,8 +38,8 @@ HA.pressure(HA.pressure>1) = 1;
 HA.neuralgia = sum(table2array(HA(:,[125 129 130 132])),2);
 HA.neuralgia(HA.neuralgia>1) = 1;
 
-[HA_severity] = boot95ciMedian(HA.p_sev_usual);
-[pedmidas] = boot95ciMedian(HA.p_pedmidas_score);
+[HA_severity] = prctile(HA.p_sev_usual,[25 50 75]);
+[pedmidas] = prctile(HA.p_pedmidas_score,[25 50 75]);
 
 
 
@@ -66,17 +74,26 @@ set(gca,'TickDir','out'); set(gca,'Box','off');
 migr = HA(HA.p_migraine_ichd==1 & HA.p_dx_overall_cat==1 & HA.p_dx_overall_pheno<4,:);
 pmigr = HA(HA.p_migraine_ichd==0 & HA.p_dx_overall_cat==1 & HA.p_dx_overall_pheno<4,:);
 tth = HA(HA.p_dx_overall_cat==1 & (HA.p_dx_overall_pheno==5|HA.p_dx_overall_pheno==6),:);
-pth = HA(HA.p_dx_overall_cat==6,:);
-ndph = HA(HA.p_dx_overall_cat==2 | HA.p_dx_overall_cat==3,:);
 tac = HA(HA.p_dx_overall_cat==1 & HA.p_dx_overall_pheno==4,:);
 
-%% LM for age, sex assigned at birth, and ICHD diagnosis at predicting transition to continuous
+%% Triggers
+noTrig = HA.p_con_prec___none;
+concTrig = HA.p_con_prec___conc;
+othinjTrig = HA.p_con_prec___oth_inj;
+GIsxTrig = HA.p_con_prec___sxg;
+infectTrig = HA.p_con_prec___infect;
+othIllTrig = HA.p_con_prec___oth_ill;
+mensTrig = HA.p_con_prec___mens;
+stressTrig = HA.p_con_prec___stress;
+othTrig = HA.p_con_prec___oth;
 
-%% Local functions
+%% Differences in transition to continuous by age and sex assigned at birth
+X = [HA.gender HA.age HA.p_sev_usual];
+Y = ordinal(HA.p_con_start_epi_time,{'1','2','3','4','5','6','7','8'},{'2wks','2to4wk','4to8wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
 
-function [boot95] = boot95ciMedian(Y)
+y = double(Y);
+[p tbl stats] = kruskalwallis(y,HA.gender);
+[p tbl stats] = kruskalwallis(y,HA.p_sev_usual);
 
-         bootstat = bootstrp(1000,@nanmedian,Y);
-         bootstat = sort(bootstat);
-         boot95 = bootstat([25 500 975]);
-end
+[B,dev,stats] = mnrfit(X,Y,'model','ordinal');
+
