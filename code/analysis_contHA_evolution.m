@@ -5,27 +5,29 @@ Pfizer_dataBasePath = getpref('continuousHA','pfizerDataPath');
 load([Pfizer_dataBasePath '/PfizerHAdataJun17Feb22.mat'])
 
 
-% Find participants, 6 to 17 years old with continuous headache
+% Find participants, 6 to 17 years old with continuous headache, without
+% PTH or NDPH
 HA = data((data.p_current_ha_pattern == 'cons_flare' | data.p_current_ha_pattern == 'cons_same') & ...
-    data.age>=6 & data.age<18,:);
+    data.age>=6 & data.age<18 & data.p_dx_overall_cat~=2 & data.p_dx_overall_cat~=3 & data.p_dx_overall_cat~=6,:);
+
+HA.miss_data = zeros(height(HA),1);
+
+% Identify missing data
+HA.miss_data((HA.p_con_start_epi_time~='1to2y' & HA.p_con_start_epi_time~='2to3y' & HA.p_con_start_epi_time~='2to4wk' &...
+    HA.p_con_start_epi_time~='2wks' & HA.p_con_start_epi_time~='3to6mo' & HA.p_con_start_epi_time~='3yrs' &...
+    HA.p_con_start_epi_time~='4to8wk' & HA.p_con_start_epi_time~='6to12mo') | (HA.p_con_pattern_duration~='1to2y' &...
+    HA.p_con_pattern_duration~='2to3y' & HA.p_con_pattern_duration~='3to6mo' & HA.p_con_pattern_duration~='3yrs' & ...
+    HA.p_con_pattern_duration~='6to12mo' & HA.p_con_pattern_duration~='2wks' & HA.p_con_pattern_duration~='2to4wk' & HA.p_con_pattern_duration~='4to8wk'),:) = 1;
+
+contHA = HA;
+
+% keep only complete data
+HA = HA(HA.miss_data==0,:);
 
 % Get rid of entries with continuous headache for <3 months
 HA = HA(HA.p_con_pattern_duration=='1to2y'|HA.p_con_pattern_duration=='2to3y'|...
     HA.p_con_pattern_duration=='3to6mo'|HA.p_con_pattern_duration=='3yrs'|...
     HA.p_con_pattern_duration=='6to12mo',:);
-
-% get rid of NDPH
-HA = HA(HA.p_dx_overall_cat~=2 & HA.p_dx_overall_cat~=3,:);
-
-% get rid of PTH
-HA = HA(HA.p_dx_overall_cat~=6,:);
-
-% Get rid of entries with missing data for duration to continuous
-HA = HA(HA.p_con_start_epi_time=='1to2y'|HA.p_con_start_epi_time=='2to3y'|HA.p_con_start_epi_time=='2to4wk'|...
-    HA.p_con_start_epi_time=='2wks'|HA.p_con_start_epi_time=='3to6mo'|HA.p_con_start_epi_time=='3yrs'|...
-    HA.p_con_start_epi_time=='4to8wk'|HA.p_con_start_epi_time=='6to12mo',:);
-
-
 
 
 HA.allodynia = sum(table2array(HA(:,817:820)),2); % clinician entered data
@@ -88,12 +90,14 @@ stressTrig = HA.p_con_prec___stress;
 othTrig = HA.p_con_prec___oth;
 
 %% Differences in transition to continuous by age and sex assigned at birth
-X = [HA.gender HA.age HA.p_sev_usual];
+X = [HA.gender HA.age HA.p_sev_usual HA.p_pedmidas_score];
 Y = ordinal(HA.p_con_start_epi_time,{'1','2','3','4','5','6','7','8'},{'2wks','2to4wk','4to8wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
 
 y = double(Y);
 [p tbl stats] = kruskalwallis(y,HA.gender);
 [p tbl stats] = kruskalwallis(y,HA.p_sev_usual);
+[p tbl stats] = kruskalwallis(y,HA.p_pedmidas_score);
+[p tbl stats] = kruskalwallis(y,HA.age);
 
 [B,dev,stats] = mnrfit(X,Y,'model','ordinal');
 
