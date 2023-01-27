@@ -30,7 +30,7 @@ HA = HA(HA.p_con_pattern_duration=='1to2y'|HA.p_con_pattern_duration=='2to3y'|..
     HA.p_con_pattern_duration=='6to12mo',:);
 
 
-HA.allodynia = sum(table2array(HA(:,817:820)),2); % clinician entered data
+HA.allodynia = sum(table2array(HA(:,191:194)),2);
 HA.allodynia(HA.allodynia>0) = 1;
 
 HA.pulsate = sum(table2array(HA(:,[123 124 133])),2);
@@ -90,14 +90,22 @@ stressTrig = HA.p_con_prec___stress;
 othTrig = HA.p_con_prec___oth;
 
 %% Differences in transition to continuous by age and sex assigned at birth
-X = [HA.gender HA.age HA.p_sev_usual HA.p_pedmidas_score];
+X = [HA.gender HA.age HA.p_sev_usual HA.p_pedmidas_score HA.allodynia];
 Y = ordinal(HA.p_con_start_epi_time,{'1','2','3','4','5','6','7','8'},{'2wks','2to4wk','4to8wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
 
+verbose = false;
 y = double(Y);
-[p tbl stats] = kruskalwallis(y,HA.gender);
-[p tbl stats] = kruskalwallis(y,HA.p_sev_usual);
-[p tbl stats] = kruskalwallis(y,HA.p_pedmidas_score);
-[p tbl stats] = kruskalwallis(y,HA.age);
+[tblSex,chi2Sex,pSex] = crosstab(Y,HA.gender,Y);
+[tblAld,chi2Ald,pAld] = crosstab(HA.allodynia,Y);
+[tblSev,statsSev,pSev] = kruskalwallis(y,HA.p_sev_usual);
+[pPM,tblPM,statsPM] = kruskalwallis(y,HA.p_pedmidas_score);
+[pAge,tblAge,statsAge] = kruskalwallis(y,HA.age);
 
 [B,dev,stats] = mnrfit(X,Y,'model','ordinal');
 
+
+%% compare missing data to non-missing data
+[tblSex_m,chi2Sex_m,pSex_m] = crosstab(contHA.miss_data,contHA.gender);
+[tblEth_m,chi2Eth_m,pEth_m] = crosstab(contHA.miss_data,removecats(contHA.ethnicity));
+[tblRace_m,chi2Race_m,pRace_m] = crosstab(contHA.miss_data,removecats(contHA.race));
+[pAge_m,tblAge_m,statsAge_m] = kruskalwallis(contHA.age,contHA.miss_data);
