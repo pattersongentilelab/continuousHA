@@ -45,4 +45,3 @@ contHA_analysisBasePath = ['/Users/' userID '/OneDrive - Children''s Hospital of
 % Code to run on Mac plaform
 setpref(projectName,'pfizerDataPath', Pfizer_dataBasePath);
 setpref(projectName,'contHaAnalysisPath', contHA_analysisBasePath);
-
