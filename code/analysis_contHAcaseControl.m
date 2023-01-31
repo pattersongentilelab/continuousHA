@@ -197,8 +197,6 @@ set(gca,'TickDir','out')
 title(sprintf('pedmidas grade: chi2 = %2.2f, p = %1.2g',[chi2_pmg p_pmg]))
 
 
-save contHA_analysisICHD casecontrol ICHD3
-
 
 %% headache severity of NDPH high vs. low usual headache severity
 ndph_case.sev_level = zeros(height(ndph_case),1);
