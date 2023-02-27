@@ -12,7 +12,11 @@ data = data_raw(data_raw.redcap_repeat_instrument~='visit_diagnoses' & ...
 data.p_con_pattern_duration = categorical(data.p_con_pattern_duration);
 data.p_con_pattern_duration = reordercats(data.p_con_pattern_duration,{'2wks','2to4wk','4to8wk','8to12wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
 data.p_con_start_epi_time = categorical(data.p_con_start_epi_time);
-data.p_con_start_epi_time = reordercats(data.p_con_start_epi_time,{'2wks','2to4wk','4to8wk','8to12wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
+data.p_con_start_epi_time = mergecats(data.p_con_start_epi_time,{'1to2y','2to3y','3yrs'},'>1yr');
+data.p_con_start_epi_time = reordercats(data.p_con_start_epi_time,{'2wks','2to4wk','4to8wk','8to12wk','3to6mo','6to12mo','>1yr'});
+
+data.con_epi_time_binary = zeros(height(data),1);
+data.con_epi_time_binary(data.p_con_start_epi_time == '3to6mo' | data.p_con_start_epi_time=='6to12mo' | data.p_con_start_epi_time=='>1yr') = 1;
 
 % categorize pain quality types
 data.pulsate = sum(table2array(data(:,[85 86 95])),2);
@@ -23,8 +27,9 @@ data.neuralgia = sum(table2array(data(:,[87 91 92 94])),2);
 data.neuralgia(data.neuralgia>1) = 1;
 
 ICHD3 = ichd3_Dx(data);
-ICHD3.dx = reordercats(ICHD3.dx,{'migraine','prob_migraine','tth','tac','ndph_no','pth','other'});
+ICHD3.dx = reordercats(ICHD3.dx,{'migraine','prob_migraine','tth','cluster','hc','primary_stabbing','occipital_neuralgia','ndph','new_onset','pth','other'});
 data.ichd3 = ICHD3.dx;
+data.ICHD_data = sum(table2array(ICHD3(:,2:40)),2);
 
 %% Apply inclusion criteria
 % Find participants, 6 to 17 years old with continuous headache, without
@@ -42,35 +47,37 @@ Age_req.race = reordercats(Age_req.race,{'white','black','asian','am_indian','pa
 % reference group
 Age_req.ethnicity = reordercats(Age_req.ethnicity,{'no_hisp','hisp','no_answer','unk'});
 
-% Creat placeholder to identify missing data
-Age_req.missdata = zeros(height(Age_req),1);
 
 % Identify those with continuous headache
 Cont_req = Age_req((Age_req.p_current_ha_pattern == 'cons_flare' | Age_req.p_current_ha_pattern == 'cons_same'),:);
-
-Age_req.missdata((Age_req.p_current_ha_pattern ~= 'cons_flare' & Age_req.p_current_ha_pattern ~= 'cons_same' & Age_req.p_current_ha_pattern ~= 'episodic'),:) = 1;
+missdata_cont = Age_req(Age_req.p_current_ha_pattern ~= 'cons_flare' & Age_req.p_current_ha_pattern ~= 'cons_same' & Age_req.p_current_ha_pattern ~= 'episodic',:);
+exclude_cont = Age_req(Age_req.p_current_ha_pattern == 'episodic',:); % not included in missing since did not start questionnaire
 
 % Get rid of entries with continuous headache for <3 months
 Dur_req = Cont_req(Cont_req.p_con_pattern_duration=='1to2y'|Cont_req.p_con_pattern_duration=='2to3y'|...
     Cont_req.p_con_pattern_duration=='3to6mo'|Cont_req.p_con_pattern_duration=='3yrs'|...
     Cont_req.p_con_pattern_duration=='6to12mo',:);
 
-Age_req.missdata(Age_req.p_current_ha_pattern ~= 'episodic' & Age_req.p_con_pattern_duration~='1to2y' & Age_req.p_con_pattern_duration~='2to3y' & Age_req.p_con_pattern_duration~='3to6mo' &...
-    Age_req.p_con_pattern_duration~='3yrs' & Age_req.p_con_pattern_duration~='6to12mo' & Age_req.p_con_pattern_duration~='2wks' & Age_req.p_con_pattern_duration~='2to4wk' &...
-    Age_req.p_con_pattern_duration~='4to8wk' & Age_req.p_con_pattern_duration~='8to12wk') = 1;
+missdata_dur = Cont_req(Cont_req.p_con_pattern_duration~='1to2y' & Cont_req.p_con_pattern_duration~='2to3y' & Cont_req.p_con_pattern_duration~='3to6mo' &...
+    Cont_req.p_con_pattern_duration~='3yrs' & Cont_req.p_con_pattern_duration~='6to12mo' & Cont_req.p_con_pattern_duration~='2wks' & Cont_req.p_con_pattern_duration~='2to4wk' &...
+    Cont_req.p_con_pattern_duration~='4to8wk' & Cont_req.p_con_pattern_duration~='8to12wk',:);
+exclude_dur =  Cont_req(Cont_req.p_con_pattern_duration=='2wks' | Cont_req.p_con_pattern_duration=='2to4wk' |...
+    Cont_req.p_con_pattern_duration=='4to8wk' | Cont_req.p_con_pattern_duration=='8to12wk',:);
 
 % only include migraine and probable migraine
 ICHD_req = Dur_req(Dur_req.ichd3=='migraine' | Dur_req.ichd3=='prob_migraine',:);
 
+missdata_ichd = Dur_req(Dur_req.ICHD_data==0,:);
+exclude_ichd = Dur_req(Dur_req.ICHD_data~=0 & Dur_req.ichd3~='migraine' & Dur_req.ichd3~='prob_migraine',:);
+
 % Keep only data that includes transition to continuous
-Evo_req = ICHD_req((ICHD_req.p_con_start_epi_time=='1to2y' | ICHD_req.p_con_start_epi_time=='2to3y' | ICHD_req.p_con_start_epi_time=='2to4wk' |...
-    ICHD_req.p_con_start_epi_time=='2wks' | ICHD_req.p_con_start_epi_time=='3to6mo' | ICHD_req.p_con_start_epi_time=='3yrs' |...
+Evo_req = ICHD_req((ICHD_req.p_con_start_epi_time=='>1yr' | ICHD_req.p_con_start_epi_time=='2to4wk' |...
+    ICHD_req.p_con_start_epi_time=='2wks' | ICHD_req.p_con_start_epi_time=='3to6mo' |...
     ICHD_req.p_con_start_epi_time=='4to8wk' | ICHD_req.p_con_start_epi_time=='6to12mo' | ICHD_req.p_con_start_epi_time=='8to12wk'),:);
 
-Age_req.missdata((Age_req.p_current_ha_pattern ~= 'episodic' & Age_req.p_con_start_epi_time~='1to2y' & Age_req.p_con_start_epi_time~='2to3y' & Age_req.p_con_start_epi_time~='2to4wk' &...
-    Age_req.p_con_start_epi_time~='2wks' & Age_req.p_con_start_epi_time~='3to6mo' & Age_req.p_con_start_epi_time~='3yrs' &...
-    Age_req.p_con_start_epi_time~='4to8wk' & Age_req.p_con_start_epi_time~='6to12mo' & Age_req.p_con_start_epi_time~='8to12wk' &...
-    Age_req.ichd3~='tac' & Age_req.ichd3~='tth' & Age_req.ichd3~='ndph_no' & Age_req.ichd3~='pth'),:) = 1;
+missdata_evo = ICHD_req(ICHD_req.p_con_start_epi_time~='>1yr' & ICHD_req.p_con_start_epi_time~='2to4wk' &...
+    ICHD_req.p_con_start_epi_time~='2wks' & ICHD_req.p_con_start_epi_time~='3to6mo' &...
+    ICHD_req.p_con_start_epi_time~='4to8wk' & ICHD_req.p_con_start_epi_time~='6to12mo' & ICHD_req.p_con_start_epi_time~='8to12wk',:);
 
 HA = Evo_req;
 
@@ -119,25 +126,23 @@ stressTrig = HA.p_con_prec___stress;
 othTrig = HA.p_con_prec___oth;
 
 %% Differences in transition to continuous by age and sex assigned at birth
-X = [HA.gender HA.age HA.p_sev_usual HA.p_pedmidas_score HA.allodynia];
-Y = ordinal(HA.p_con_start_epi_time,{'1','2','3','4','5','6','7','8'},{'2wks','2to4wk','4to8wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
 
-verbose = false;
-y = double(Y);
-[tblSex,chi2Sex,pSex] = crosstab(Y,HA.gender,Y);
-[tblAld,chi2Ald,pAld] = crosstab(HA.allodynia,Y);
-[tblSev,statsSev,pSev] = kruskalwallis(y,HA.p_sev_usual);
-[pPM,tblPM,statsPM] = kruskalwallis(y,HA.p_pedmidas_score);
-[pAge,tblAge,statsAge] = kruskalwallis(y,HA.age);
+HA.race = removecats(HA.race);
+HA.ethnicity = removecats(HA.ethnicity);
+HA.ichd3 = removecats(HA.ichd3);
+mdl = fitglm(HA,'con_epi_time_binary ~ ageY + gender + race + ethnicity + p_pedmidas_score + p_sev_usual + ichd3','Distribution','binomial');
 
-[B,dev,stats] = mnrfit(X,Y,'model','ordinal');
 
 
 %% compare missing data to non-missing data
-[tblSex_m,chi2Sex_m,pSex_m] = crosstab(Age_req.missdata,Age_req.gender);
-[tblEth_m,chi2Eth_m,pEth_m] = crosstab(Age_req.missdata,removecats(Age_req.ethnicity));
-[tblRace_m,chi2Race_m,pRace_m] = crosstab(Age_req.missdata,removecats(Age_req.race));
-[pAge_m,tblAge_m,statsAge_m] = kruskalwallis(Age_req.age,Age_req.missdata);
+missdata = [missdata_dur;missdata_ichd;missdata_evo];
+missdata.missdata = ones(height(missdata),1);
 
+excludedata = [exclude_cont;exclude_dur;exclude_ichd];
+excludedata.missdata = zeros(height(excludedata),1);
 
-mdl = fitglm(Age_req,'missdata ~ ageY + gender + race + ethnicity','Distribution','binomial');
+HA.missdata = zeros(height(HA),1);
+
+rebuild_data = [HA;excludedata;missdata];
+
+mdl_miss = fitglm(rebuild_data,'missdata ~ ageY + gender + race + ethnicity','Distribution','binomial');
