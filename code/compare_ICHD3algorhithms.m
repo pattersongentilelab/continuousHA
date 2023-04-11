@@ -25,12 +25,13 @@ data.pressure_c(data.pressure_c>1) = 1;
 data.neuralgia_c = sum(table2array(data(:,[746 750 751 753])),2);
 data.neuralgia_c(data.neuralgia_c>1) = 1;
 
-ICHD3 = ichd3_Dx_clinician(data);
+ICHD3 = ichd3_Dx(data);
+ICHD3c = ichd3_Dx_clinician(data);
 data.ichd3 = ICHD3.dx;
 
 
 
 
-temp = tbl.record_id(tbl.p_assoc_sx_vis___spot==1 & tbl.p_assoc_sx_vis___star==0 &...
-    tbl.p_assoc_sx_vis___light==0  & tbl.p_assoc_sx_vis___zigzag==0 & tbl.p_assoc_sx_vis___heat==0 &...
-    tbl.p_assoc_sx_vis___loss_vis==0 & (ICHD3.migraine==1 | ICHD3.probable_migraine==1));
+temp = data.record_id((data.p_assoc_sx_vis___spot==1 | data.p_assoc_sx_vis___star==1 |...
+    data.p_assoc_sx_vis___light==1  | data.p_assoc_sx_vis___zigzag==1 & data.p_assoc_sx_vis___heat==1 |...
+    data.p_assoc_sx_vis___loss_vis==1) & (ICHD3.migraine==0 & ICHD3.probable_migraine==0));
