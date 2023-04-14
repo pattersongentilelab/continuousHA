@@ -57,12 +57,25 @@
 		"hook": "",
 		"importance": "",
 		"localHookTemplate": "",
-		"name": "Psychtoolbox-3",
+		"name": "headacheDx",
 		"pathPlacement": "append",
-		"subfolder": "Psychtoolbox",
+		"subfolder": "",
 		"toolboxRoot": "",
-		"type": "include",
+		"type": "git",
 		"update": "",
-		"url": ""
+		"url": "https://github.com/pattersongentilelab/headacheDx.git"
+	},
+{
+		"flavor": "",
+		"hook": "",
+		"importance": "",
+		"localHookTemplate": "",
+		"name": "commonFx",
+		"pathPlacement": "append",
+		"subfolder": "",
+		"toolboxRoot": "",
+		"type": "git",
+		"update": "",
+		"url": "https://github.com/pattersongentilelab/commonFx.git"
 	}
 ]
