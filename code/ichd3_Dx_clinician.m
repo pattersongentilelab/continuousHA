@@ -186,7 +186,7 @@ function [ICHD3] = ichd3_Dx_clinician(tbl)
         ICHD3.pheno(ICHD3.cluster==1) = 5;
         ICHD3.pheno(ICHD3.hc==1) = 5;
         
-        ICHD3.pheno = categorical(ICHD3.pheno,[0 1 2 4 5 6],{'undefined','migraine','prob_migraine','migraine_aura','tth','tac','other_primary'});
+        ICHD3.pheno = categorical(ICHD3.pheno,[0 1 2 4 5 6],{'undefined','migraine','prob_migraine','tth','tac','other_primary'});
         %% final diagnosis
         
         ICHD3.dx = zeros(height(tbl),1);
@@ -203,6 +203,6 @@ function [ICHD3] = ichd3_Dx_clinician(tbl)
         ICHD3.dx(ICHD3.pth==1) = 9;
         
         
-        ICHD3.dx = categorical(ICHD3.dx,[0 1 2 4 5 6 7 8 9],{'undefined','migraine','prob_migraine','migraine_aura','tth','tac','other_primary','new_onset','ndph','pth'});
+        ICHD3.dx = categorical(ICHD3.dx,[0 1 2 4 5 6 7 8 9],{'undefined','migraine','prob_migraine','tth','tac','other_primary','new_onset','ndph','pth'});
         
 end

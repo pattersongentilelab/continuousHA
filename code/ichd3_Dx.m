@@ -2,9 +2,16 @@
 function [ICHD3] = ichd3_Dx(tbl)
         
 %% Migraine features
-        
-        
+
         ICHD3 = tbl(:,1);
+        
+        ICHD3.pressure = zeros(height(tbl),1);
+        ICHD3.pressure(tbl.p_ha_quality___dull==1|tbl.p_ha_quality___tight==1|tbl.p_ha_quality___pushout==1|tbl.p_ha_quality___pushin==1) = 1;
+        ICHD3.pulsate = zeros(height(tbl),1);
+        ICHD3.pulsate(tbl.p_ha_quality___throb==1|tbl.p_ha_quality___pound==1|tbl.p_ha_quality___throb==1) = 1;
+        ICHD3.neuralgia = zeros(height(tbl),1);
+        ICHD3.neuralgia(tbl.p_ha_quality___sharp==1|tbl.p_ha_quality___burn==1|tbl.p_ha_quality___pinch==1|tbl.p_ha_quality___stab==1) = 1;
+       
         
         ICHD3.focal = zeros(height(tbl),1);
         ICHD3.focal(tbl.p_location_side___right==1|tbl.p_location_side___left==1) = 1;
@@ -32,8 +39,8 @@ function [ICHD3] = ichd3_Dx(tbl)
         ICHD3.aura = zeros(height(tbl),1);
         ICHD3.aura(ICHD3.aura_sens==1|ICHD3.aura_vis==1|ICHD3.aura_speech==1|ICHD3.aura_weak==1|ICHD3.aura_brainstem==1) = 1;
         
-        ICHD3.pulsate = tbl.pulsate;
-        ICHD3.pressure = tbl.pressure;
+        ICHD3.pulsate = ICHD3.pulsate;
+        ICHD3.pressure = ICHD3.pressure;
         
         ICHD3.photophobia = zeros(height(tbl),1);
         ICHD3.photophobia(tbl.p_assoc_sx_oth_sx___light==1|tbl.p_trigger___light==1) = 1;
@@ -56,7 +63,7 @@ function [ICHD3] = ichd3_Dx(tbl)
         ICHD3.mig_dur(tbl.p_sev_dur=='3days'|tbl.p_sev_dur=='1to3d'|tbl.p_sev_dur=='hrs') = 1;
         
         ICHD3.mig_num = zeros(height(tbl),1);
-        ICHD3.mig_num(tbl.p_ha_in_lifetime=='many' | (tbl.p_ha_in_lifetime=='few' & ICHD3.aura==1)) = 1;
+        ICHD3.mig_num(tbl.p_ha_in_lifetime=='many') = 1;
         
         ICHD3.photophono = sum([ICHD3.photophobia ICHD3.phonophobia],2);
         
@@ -79,12 +86,12 @@ function [ICHD3] = ichd3_Dx(tbl)
         ICHD3.probable_migraine(ICHD3.mig_score==3) = 1;
         
         ICHD3.migraine_aura = zeros(height(tbl),1);
-        ICHD3.migraine_aura(ICHD3.migraine==1 & ICHD3.aura==1) = 1;
+        ICHD3.migraine_aura((ICHD3.migraine==1|ICHD3.probable_migraine==1)& ICHD3.aura==1) = 1;
         
         % determine if chronic
-        ICHD3.chronic = zeros(height(tbl),1);
-        ICHD3.chronic((tbl.p_con_pattern_duration=='3yrs'|tbl.p_con_pattern_duration=='1to2yr'|tbl.p_con_pattern_duration=='6to12mo'|...
-            tbl.p_con_pattern_duration=='3to6mo'|tbl.p_epi_fre_dur=='3mo') & (tbl.p_fre_bad=='2to3wk'|tbl.p_fre_bad=='3wk'|tbl.p_fre_bad=='daily'|...
+        ICHD3.chronic_migraine = zeros(height(tbl),1);
+        ICHD3.chronic_migraine((ICHD3.migraine==1|ICHD3.probable_migraine==1) & (tbl.p_con_pattern_duration=='3yrs'|tbl.p_con_pattern_duration=='1to2y'|tbl.p_con_pattern_duration=='6to12mo'|...
+            tbl.p_con_pattern_duration=='3to6mo'|tbl.p_con_pattern_duration=='2to3y'|tbl.p_epi_fre_dur=='3mo') & (tbl.p_fre_bad=='2to3wk'|tbl.p_fre_bad=='3wk'|tbl.p_fre_bad=='daily'|...
             tbl.p_fre_bad=='always')) = 1;
         
  
@@ -96,7 +103,7 @@ function [ICHD3] = ichd3_Dx(tbl)
         ICHD3.tth_char(tbl.p_location_side___both==1) = ICHD3.tth_char(tbl.p_location_side___both==1)+1;
         ICHD3.tth_char(ICHD3.pressure==1 & ICHD3.pulsate==0) = ICHD3.tth_char(ICHD3.pressure==1 & ICHD3.pulsate==0)+1;
         ICHD3.tth_char(tbl.p_sev_overall=='mild' | tbl.p_sev_overall=='mod' | tbl.p_sev_usual<7) = ICHD3.tth_char(tbl.p_sev_overall=='mild' | tbl.p_sev_overall=='mod' | tbl.p_sev_usual<7)+1;
-        ICHD3.tth_char(tbl.p_activity=='feel_better' | tbl.p_activity=='no_change') = ICHD3.tth_char(tbl.p_activity=='feel_better' | tbl.p_activity=='no_change')+1;
+        ICHD3.tth_char((tbl.p_activity=='feel_better' | tbl.p_activity=='no_change') & tbl.p_trigger___exercise==0) = ICHD3.tth_char((tbl.p_activity=='feel_better' | tbl.p_activity=='no_change') & tbl.p_trigger___exercise==0)+1;
 
         % determine if tension-type headache
         ICHD3.tth_score = zeros(height(tbl),1);
@@ -107,6 +114,11 @@ function [ICHD3] = ichd3_Dx(tbl)
         
         ICHD3.tth = zeros(height(tbl),1);
         ICHD3.tth(ICHD3.tth_score==4) = 1;
+        
+        ICHD3.chronic_tth = zeros(height(tbl),1);
+        ICHD3.chronic_tth(ICHD3.tth==1 & (tbl.p_con_pattern_duration=='3yrs'|tbl.p_con_pattern_duration=='1to2y'|tbl.p_con_pattern_duration=='6to12mo'|...
+            tbl.p_con_pattern_duration=='3to6mo'|tbl.p_con_pattern_duration=='2to3y'|tbl.p_epi_fre_dur=='3mo') & (tbl.p_fre_bad=='2to3wk'|tbl.p_fre_bad=='3wk'|tbl.p_fre_bad=='daily'|...
+            tbl.p_fre_bad=='always')) = 1;
         
         %% TAC
         ICHD3.unilateral_sideLocked = zeros(height(tbl),1);        
@@ -179,7 +191,7 @@ function [ICHD3] = ichd3_Dx(tbl)
         ICHD3.pheno(ICHD3.cluster==1) = 5;
         ICHD3.pheno(ICHD3.hc==1) = 5;
         
-        ICHD3.pheno = categorical(ICHD3.pheno,[0 1 2 4 5 6],{'undefined','migraine','prob_migraine','migraine_aura','tth','tac','other_primary'});
+        ICHD3.pheno = categorical(ICHD3.pheno,[0 1 2 4 5 6],{'undefined','migraine','prob_migraine','tth','tac','other_primary'});
         %% final diagnosis
         
         ICHD3.dx = zeros(height(tbl),1);
@@ -196,6 +208,6 @@ function [ICHD3] = ichd3_Dx(tbl)
         ICHD3.dx(ICHD3.pth==1) = 9;
         
         
-        ICHD3.dx = categorical(ICHD3.dx,[0 1 2 4 5 6 7 8 9],{'undefined','migraine','prob_migraine','migraine_aura','tth','tac','other_primary','new_onset','ndph','pth'});
+        ICHD3.dx = categorical(ICHD3.dx,[0 1 2 4 5 6 7 8 9],{'undefined','migraine','prob_migraine','tth','tac','other_primary','new_onset','ndph','pth'});
         
 end
