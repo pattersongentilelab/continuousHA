@@ -37,7 +37,7 @@ end
 [~, userID] = system('whoami');
 userID = strtrim(userID);
 
-Pfizer_dataBasePath = ['/Users/' userID '/OneDrive - Children"s Hospital of Philadelphia/Research/Pfizer Registry/Data/continuousHA/'];
+Pfizer_dataBasePath = ['/Users/' userID '/OneDrive - Children''s Hospital of Philadelphia/Research/Pfizer Registry/Data/continuousHA/'];
 contHA_analysisBasePath = ['/Users/' userID '/OneDrive - Children''s Hospital of Philadelphia/Research/Pfizer Registry/Analysis/continuousHA'];
 
 %% Specify where output goes (for mac)
