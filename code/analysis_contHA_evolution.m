@@ -16,6 +16,9 @@ data.con_epi_time_cat(data.p_con_start_epi_time == '2wks' | data.p_con_start_epi
 data.con_epi_time_cat(data.p_con_start_epi_time == '3to6mo' | data.p_con_start_epi_time=='6to12mo' | data.p_con_start_epi_time=='1to2y' | ...
     data.p_con_start_epi_time=='2to3y' | data.p_con_start_epi_time=='3yrs') = 0;
 
+data.con_epi_time_cat2 = data.con_epi_time_cat;
+data.con_epi_time_cat = categorical(data.con_epi_time_cat,[2 1 0],{'sudden onset','rapid evolution','gradual evolution'});
+
 
 ICHD3 = ichd3_Dx(data);
 ICHD3.dx = reordercats(ICHD3.dx,{'migraine','prob_migraine','chronic_migraine','tth','chronic_tth','tac','other_primary','new_onset','ndph','pth','undefined'});
@@ -26,6 +29,44 @@ data.pulsate = ICHD3.pulsate;
 data.pressure = ICHD3.pressure;
 data.neuralgia = ICHD3.neuralgia;
 data.ICHD_data = sum(table2array(ICHD3(:,2:40)),2);
+
+data.pattern_dur_days = zeros(height(data),1);
+data.pattern_dur_days(data.p_con_pattern_duration=='2wks') = 7;
+data.pattern_dur_days(data.p_con_pattern_duration=='2to4wk') = 21;
+data.pattern_dur_days(data.p_con_pattern_duration=='4to8wk') = 42;
+data.pattern_dur_days(data.p_con_pattern_duration=='8to12wk') = 70;
+data.pattern_dur_days(data.p_con_pattern_duration=='3to6mo') = 135;
+data.pattern_dur_days(data.p_con_pattern_duration=='6to12mo') = 270;
+data.pattern_dur_days(data.p_con_pattern_duration=='1to2y') = 550;
+data.pattern_dur_days(data.p_con_pattern_duration=='2to3y') = 910;
+data.pattern_dur_days(data.p_con_pattern_duration=='3yrs') = 1280;
+
+%% Collapse triggers data
+
+data.nTriggers = sum([data.p_con_prec___conc data.p_con_prec___sxg...
+    data.p_con_prec___infect data.p_con_prec___mens data.p_con_prec___stress data.p_con_prec___oth],2);
+
+% removed 'other injury' since only those who also had concussion reported
+% other injury
+data.triggers = -1*ones(height(data),1);
+data.triggers(data.p_con_prec___none==1) = 0;
+data.triggers(data.p_con_prec___conc==1) = 1;
+data.triggers(data.p_con_prec___sxg==1) = 2;
+data.triggers(data.p_con_prec___infect==1|data.p_con_prec___oth_ill==1) = 3;
+data.triggers(data.p_con_prec___mens==1) = 4;
+data.triggers(data.p_con_prec___stress==1) = 5;
+data.triggers(data.p_con_prec___oth==1|data.p_con_prec___oth_ill==1) = 6;
+data.triggers(data.nTriggers>1) = 7;
+
+data.triggers = categorical(data.triggers,0:1:7,{'none','concussion','GI symptoms',...
+    'illness','menses','stress','other','multiple'});
+
+data.triggers = mergecats(data.triggers,{'illness','GI symptoms'});
+
+data.trigger_binary = NaN*ones(height(data),1);
+data.trigger_binary(data.triggers=='none') = 0;
+data.trigger_binary(data.triggers~='none') = 1;
+
 
 %% Apply inclusion criteria
 % Find participants, 6 to 17 years old with continuous headache, without
@@ -52,8 +93,8 @@ Age_req.ethnicity = reordercats(Age_req.ethnicity,{'no_hisp','hisp','no_answer',
 Cont_req = Age_req((Age_req.p_current_ha_pattern == 'cons_flare' | Age_req.p_current_ha_pattern == 'cons_same'),:);
 exclude_cont =  Age_req(Age_req.p_current_ha_pattern=='episodic',:);
 
-Evo_req = Cont_req(~isnan(Cont_req.con_epi_time_cat),:);
-missdata_evo = Cont_req(isnan(Cont_req.con_epi_time_cat),:);
+Evo_req = Cont_req(~isnan(Cont_req.con_epi_time_cat2),:);
+missdata_evo = Cont_req(isnan(Cont_req.con_epi_time_cat2),:);
 
 HA = Evo_req;
 
@@ -63,7 +104,6 @@ HA3mo = HA(HA.p_con_pattern_duration=='1to2y'|HA.p_con_pattern_duration=='2to3y'
 
 [HA_severity] = prctile(HA.p_sev_usual,[25 50 75]);
 [pedmidas] = prctile(HA.p_pedmidas_score,[25 50 75]);
-
 
 
 
@@ -93,47 +133,42 @@ subplot(2,2,3)
 histogram(HA.age,'Normalization','probability')
 set(gca,'TickDir','out'); set(gca,'Box','off');
 
-%% Triggers
-noTrig = HA.p_con_prec___none;
-concTrig = HA.p_con_prec___conc;
-othinjTrig = HA.p_con_prec___oth_inj;
-GIsxTrig = HA.p_con_prec___sxg;
-infectTrig = HA.p_con_prec___infect;
-othIllTrig = HA.p_con_prec___oth_ill;
-mensTrig = HA.p_con_prec___mens;
-stressTrig = HA.p_con_prec___stress;
-othTrig = HA.p_con_prec___oth;
-
-%% Differences in transition to continuous by age and sex assigned at birth
-
-HA.race = removecats(HA.race);
-HA.ethnicity = removecats(HA.ethnicity);
-HA.ichd3 = removecats(HA.ichd3);
-mdl = fitglm(HA,'con_epi_time_cat ~ ageY + gender + race + ethnicity + p_pedmidas_score + p_sev_usual + ichd3');
-
-
-
 %% compare no, rapid, and gradual evolution of headache to continuous
+HA.ethnicity = removecats(HA.ethnicity);
+HA.race = removecats(HA.race);
+HA.ichd3 = removecats(HA.ichd3);
 
 [pAge,tblAge,statsAge] = kruskalwallis(HA.age,HA.con_epi_time_cat);
 [tblSex,ChiSex,pSex] = crosstab(HA.gender,HA.con_epi_time_cat);
+[tblRace,ChiRace,pRace] = crosstab(HA.race,HA.con_epi_time_cat);
+[tblEth,ChiEth,pEth] = crosstab(HA.ethnicity,HA.con_epi_time_cat);
 [pSev,tblSev,statsSev] = kruskalwallis(HA.p_sev_usual,HA.con_epi_time_cat);
 [pDis,tblDis,statsDis] = kruskalwallis(HA.p_pedmidas_score,HA.con_epi_time_cat);
 [tblICHD,~,~] = crosstab(HA.ichd3,HA.con_epi_time_cat);
 [tblDur,ChiDur,pDur] = crosstab(HA.p_con_pattern_duration,HA.con_epi_time_cat);
+[pDurD,tblDurD,statsDurD] = kruskalwallis(HA.pattern_dur_days,HA.con_epi_time_cat);
 [tblPat,ChiPat,pPat] = crosstab(removecats(HA.p_current_ha_pattern),HA.con_epi_time_cat);
 [tblEvo,~,~] = crosstab(HA.p_con_start_epi_time,HA.con_epi_time_cat);
+[tblTrig,ChiTrig,pTrig] = crosstab(HA.triggers,HA.con_epi_time_cat);
+[tblTrigBi,ChiTrigBi,pTrigBi] = crosstab(HA.trigger_binary,HA.con_epi_time_cat);
 
-[tblnTrig,ChinTrig,pnTrig] = crosstab(noTrig,HA.con_epi_time_cat);
-[tblcTrig,ChicTrig,pcTrig] = crosstab(concTrig,HA.con_epi_time_cat);
-[tbloiTrig,ChioiTrig,poiTrig] = crosstab(othinjTrig,HA.con_epi_time_cat);
-[tbliTrig,ChiiTrig,piTrig] = crosstab(infectTrig,HA.con_epi_time_cat);
-[tblgiTrig,ChigiTrig,pgiTrig] = crosstab(GIsxTrig,HA.con_epi_time_cat);
-[tbloilTrig,ChioilTrig,poilTrig] = crosstab(othIllTrig,HA.con_epi_time_cat);
-[tblsTrig,ChisTrig,psTrig] = crosstab(stressTrig,HA.con_epi_time_cat);
-[tblmTrig,ChimTrig,pmTrig] = crosstab(mensTrig,HA.con_epi_time_cat);
-[tbloTrig,ChioTrig,poTrig] = crosstab(othTrig,HA.con_epi_time_cat);
+%% Compare pedmidas
+[rAge2,pAge2] = corr(HA.age(~isnan(HA.p_pedmidas_score)),HA.p_pedmidas_score(~isnan(HA.p_pedmidas_score)),'Type','Spearman');
+[pSex2,tblSex2,statsSex2] = kruskalwallis(HA.p_pedmidas_score,HA.gender);
+[pRace2,tblRace2,statsRace2] = kruskalwallis(HA.p_pedmidas_score,HA.race);
+[pEth2,tblEth2,statsEth2] = kruskalwallis(HA.p_pedmidas_score,HA.ethnicity);
+[rSev2,pSev2] = corr(HA.p_sev_usual(~isnan(HA.p_pedmidas_score) & ~isnan(HA.p_sev_usual)),HA.p_pedmidas_score(~isnan(HA.p_pedmidas_score) & ~isnan(HA.p_sev_usual)),'Type','Spearman');
+[rDurD2,pDurD2] = corr(HA.pattern_dur_days(~isnan(HA.p_pedmidas_score)),HA.p_pedmidas_score(~isnan(HA.p_pedmidas_score)),'Type','Spearman');
+[pPat2,tblPat2,statsPat2] = kruskalwallis(HA.p_pedmidas_score,HA.p_current_ha_pattern);
+[pTrig2,tblTrig2,statsTrig2] = kruskalwallis(HA.p_pedmidas_score,HA.triggers);
+[pTrigBi2,tblTrigBi2,statsTrigBi2] = kruskalwallis(HA.p_pedmidas_score,HA.trigger_binary);
+[pICHD2,tblICHD2,statsICHD2] = kruskalwallis(HA.p_pedmidas_score,HA.ichd3);
 
+%% Regression analysis
+
+mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + pattern_dur_days + p_sev_usual + trigger_binary','RobustOpts','on');
+
+% Calc95fromSE();
 %% compare missing data to non-missing data
 missdata = missdata_evo;
 missdata.missdata = ones(height(missdata),1);
@@ -145,20 +180,10 @@ HA.missdata = zeros(height(HA),1);
 
 rebuild_data = [HA;missdata];
 
-mdl_miss = fitglm(rebuild_data,'missdata ~ ageY + gender + race + ethnicity','Distribution','binomial');
+mdl_miss = fitglm(rebuild_data,'missdata ~ age + gender + race + ethnicity','Distribution','binomial');
 
 
 %% compare no, rapid, and gradual evolution of headache to continuous (3 months continuous headache only)
-
-noTrig3 = HA3mo.p_con_prec___none;
-concTrig3 = HA3mo.p_con_prec___conc;
-othinjTrig3 = HA3mo.p_con_prec___oth_inj;
-GIsxTrig3 = HA3mo.p_con_prec___sxg;
-infectTrig3 = HA3mo.p_con_prec___infect;
-othIllTrig3 = HA3mo.p_con_prec___oth_ill;
-mensTrig3 = HA3mo.p_con_prec___mens;
-stressTrig3 = HA3mo.p_con_prec___stress;
-othTrig3 = HA3mo.p_con_prec___oth;
 
 [pAge3,tblAge3,statsAge3] = kruskalwallis(HA3mo.age,HA3mo.con_epi_time_cat);
 [tblSex3,ChiSex3,pSex3] = crosstab(HA3mo.gender,HA3mo.con_epi_time_cat);
@@ -168,25 +193,4 @@ othTrig3 = HA3mo.p_con_prec___oth;
 [tblDur3,~,~] = crosstab(removecats(HA3mo.p_con_pattern_duration),HA3mo.con_epi_time_cat);
 [tblPat3,ChiPat3,pPat3] = crosstab(removecats(HA3mo.p_current_ha_pattern),HA3mo.con_epi_time_cat);
 [tblEvo3,~,~] = crosstab(HA3mo.p_con_start_epi_time,HA3mo.con_epi_time_cat);
-
-
-[tblnTrig3,ChinTrig3,pnTrig3] = crosstab(noTrig3,HA3mo.con_epi_time_cat);
-[tblcTrig3,ChicTrig3,pcTrig3] = crosstab(concTrig3,HA3mo.con_epi_time_cat);
-[tbloiTrig3,ChioiTrig3,poiTrig3] = crosstab(othinjTrig3,HA3mo.con_epi_time_cat);
-[tbliTrig3,ChiiTrig3,piTrig3] = crosstab(infectTrig3,HA3mo.con_epi_time_cat);
-[tblgiTrig3,ChigiTrig3,pgiTrig3] = crosstab(GIsxTrig3,HA3mo.con_epi_time_cat);
-[tbloilTrig3,ChioilTrig3,poilTrig3] = crosstab(othIllTrig3,HA3mo.con_epi_time_cat);
-[tblsTrig3,ChisTrig3,psTrig3] = crosstab(stressTrig3,HA3mo.con_epi_time_cat);
-[tblmTrig3,ChimTrig3,pmTrig3] = crosstab(mensTrig3,HA3mo.con_epi_time_cat);
-[tbloTrig3,ChioTrig3,poTrig3] = crosstab(othTrig3,HA3mo.con_epi_time_cat);
-
-% % Get rid of entries with continuous headache for <3 months
-% Dur_req = Cont_req(Cont_req.p_con_pattern_duration=='1to2y'|Cont_req.p_con_pattern_duration=='2to3y'|...
-%     Cont_req.p_con_pattern_duration=='3to6mo'|Cont_req.p_con_pattern_duration=='3yrs'|...
-%     Cont_req.p_con_pattern_duration=='6to12mo',:);
-% 
-% missdata_dur = Cont_req(Cont_req.p_con_pattern_duration~='1to2y' & Cont_req.p_con_pattern_duration~='2to3y' & Cont_req.p_con_pattern_duration~='3to6mo' &...
-%     Cont_req.p_con_pattern_duration~='3yrs' & Cont_req.p_con_pattern_duration~='6to12mo' & Cont_req.p_con_pattern_duration~='2wks' & Cont_req.p_con_pattern_duration~='2to4wk' &...
-%     Cont_req.p_con_pattern_duration~='4to8wk' & Cont_req.p_con_pattern_duration~='8to12wk',:);
-% exclude_dur =  Cont_req(Cont_req.p_con_pattern_duration=='2wks' | Cont_req.p_con_pattern_duration=='2to4wk' |...
-%     Cont_req.p_con_pattern_duration=='4to8wk' | Cont_req.p_con_pattern_duration=='8to12wk',:);
+[tblTrig3,ChiTrig3,pTrig3] = crosstab(HA3mo.triggers,HA3mo.con_epi_time_cat);
