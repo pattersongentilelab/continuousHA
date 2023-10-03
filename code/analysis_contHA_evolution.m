@@ -168,6 +168,7 @@ HA.ichd3 = removecats(HA.ichd3);
 
 mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + pattern_dur_days + p_sev_usual + trigger_binary','RobustOpts','on');
 
+mdl_final = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + trigger_binary','RobustOpts','on');
 % Calc95fromSE();
 %% compare missing data to non-missing data
 missdata = missdata_evo;
