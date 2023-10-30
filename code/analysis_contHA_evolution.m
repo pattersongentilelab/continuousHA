@@ -195,3 +195,47 @@ mdl_miss = fitglm(rebuild_data,'missdata ~ age + gender + race + ethnicity','Dis
 [tblPat3,ChiPat3,pPat3] = crosstab(removecats(HA3mo.p_current_ha_pattern),HA3mo.con_epi_time_cat);
 [tblEvo3,~,~] = crosstab(HA3mo.p_con_start_epi_time,HA3mo.con_epi_time_cat);
 [tblTrig3,ChiTrig3,pTrig3] = crosstab(HA3mo.triggers,HA3mo.con_epi_time_cat);
+
+%% plot model
+
+figure
+hold on
+title('Full Model')
+xlabel('Change in PedMIDAS score')
+
+varNumFull = {'trigger_binary','pattern_dur_days','con_epi_time_cat_gradual evolution','con_epi_time_cat_rapid evolution','p_sev_usual','race_unk','race_am_indian','race_asian','race_black','age','gender'};
+ax = gca; ax.Box = 'on'; ax.YTick = 1:length(varNumFull); ax.YTickLabel = varNumFull; ax.YLim = [0 length(varNumFull)+1];
+
+Err = zeros(length(varNumFull),3);
+full_model95 = zeros(length(varNumFull),3);
+for x = 1:length(varNumFull)
+    temp = Calc95fromSE(table2array(mdl_evo_disability.Coefficients(varNumFull(:,x),1)),table2array(mdl_evo_disability.Coefficients(varNumFull(:,x),2)));
+    Err(x,:) = [temp(1)  abs(diff(temp([1 2]))) abs(diff(temp([1 3])))];
+    full_model95(x,:) = temp;
+end
+full_model95 = flipud(full_model95);
+
+errorbar(Err(:,1),1:length(varNumFull),[],[],Err(:,2),Err(:,3),'ok','MarkerFaceColor','k')
+plot([0 0],[0 length(varNumFull)+1],'--k')
+
+
+figure
+hold on
+title('Final Model')
+xlabel('Change in PedMIDAS score')
+
+varNumFinal = {'trigger_binary','con_epi_time_cat_gradual evolution','con_epi_time_cat_rapid evolution','age'};
+ax = gca; ax.Box = 'on'; ax.YTick = 1:length(varNumFinal); ax.YTickLabel = varNumFinal; ax.YLim = [0 length(varNumFinal)+1]; ax.XLim = [-30 30];
+
+Err = zeros(length(varNumFinal),3);
+final_model95 = zeros(length(varNumFinal),3);
+for x = 1:length(varNumFinal)
+    temp = Calc95fromSE(table2array(mdl_final.Coefficients(varNumFinal(:,x),1)),table2array(mdl_final.Coefficients(varNumFinal(:,x),2)));
+    Err(x,:) = [temp(1)  abs(diff(temp([1 2]))) abs(diff(temp([1 3])))];
+    full_model95(x,:) = temp;
+end
+finsl_model95 = flipud(final_model95);
+
+errorbar(Err(:,1),1:length(varNumFinal),[],[],Err(:,2),Err(:,3),'ok','MarkerFaceColor','k')
+plot([0 0],[0 length(varNumFinal)+1],'--k')
+
