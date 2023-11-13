@@ -41,6 +41,13 @@ data.pattern_dur_days(data.p_con_pattern_duration=='1to2y') = 550;
 data.pattern_dur_days(data.p_con_pattern_duration=='2to3y') = 910;
 data.pattern_dur_days(data.p_con_pattern_duration=='3yrs') = 1280;
 
+% Pedmidas severity grade
+data.pedmidas_grade = NaN*ones(height(data),1);
+data.pedmidas_grade(data.p_pedmidas_score<=10) = 0;
+data.pedmidas_grade(data.p_pedmidas_score>10 & data.p_pedmidas_score<=30) = 1;
+data.pedmidas_grade(data.p_pedmidas_score>30 & data.p_pedmidas_score<=50) = 2;
+data.pedmidas_grade(data.p_pedmidas_score>50) = 3;
+
 %% Collapse triggers data
 
 data.nTriggers = sum([data.p_con_prec___conc data.p_con_prec___sxg...
