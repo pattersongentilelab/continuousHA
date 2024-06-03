@@ -3,7 +3,8 @@
 Pfizer_dataBasePath = getpref('continuousHA','pfizerDataPath');
 
 load([Pfizer_dataBasePath 'PfizerHAdataJun23.mat'])
-
+addpath '/Users/pattersonc/Documents/MATLAB/commonFx'
+addpath '/Users/pattersonc/Documents/MATLAB/headacheDx'
 
 data.p_con_pattern_duration = categorical(data.p_con_pattern_duration);
 data.p_con_pattern_duration = reordercats(data.p_con_pattern_duration,{'2wks','2to4wk','4to8wk','8to12wk','3to6mo','6to12mo','1to2y','2to3y','3yrs'});
@@ -30,16 +31,28 @@ data.pressure = ICHD3.pressure;
 data.neuralgia = ICHD3.neuralgia;
 data.ICHD_data = sum(table2array(ICHD3(:,2:40)),2);
 
-data.pattern_dur_days = zeros(height(data),1);
-data.pattern_dur_days(data.p_con_pattern_duration=='2wks') = 7;
-data.pattern_dur_days(data.p_con_pattern_duration=='2to4wk') = 21;
-data.pattern_dur_days(data.p_con_pattern_duration=='4to8wk') = 42;
-data.pattern_dur_days(data.p_con_pattern_duration=='8to12wk') = 70;
-data.pattern_dur_days(data.p_con_pattern_duration=='3to6mo') = 135;
-data.pattern_dur_days(data.p_con_pattern_duration=='6to12mo') = 270;
-data.pattern_dur_days(data.p_con_pattern_duration=='1to2y') = 550;
-data.pattern_dur_days(data.p_con_pattern_duration=='2to3y') = 910;
-data.pattern_dur_days(data.p_con_pattern_duration=='3yrs') = 1280;
+% Reorder race categories to make white (largest group) the reference group
+data.race_full = data.race;
+data.race = reordercats(data.race,{'white','black','asian','am_indian','pacific_island','no_answer','unk'});
+data.race = mergecats(data.race,{'am_indian','pacific_island','no_answer','unk'},'other');
+data.race(data.race=='other') = '<undefined>';
+data.race = removecats(data.race);
+
+% Reorder ethnicity categories to make non-hispanic (largest group) the
+% reference group
+data.ethnicity = reordercats(data.ethnicity,{'no_hisp','hisp','no_answer','unk'});
+data.ethnicity = removecats(data.ethnicity);
+
+data.pattern_dur_wk = zeros(height(data),1);
+data.pattern_dur_wk(data.p_con_pattern_duration=='2wks') = 1;
+data.pattern_dur_wk(data.p_con_pattern_duration=='2to4wk') = 3;
+data.pattern_dur_wk(data.p_con_pattern_duration=='4to8wk') = 6;
+data.pattern_dur_wk(data.p_con_pattern_duration=='8to12wk') = 10;
+data.pattern_dur_wk(data.p_con_pattern_duration=='3to6mo') = 18;
+data.pattern_dur_wk(data.p_con_pattern_duration=='6to12mo') = 36;
+data.pattern_dur_wk(data.p_con_pattern_duration=='1to2y') = 72;
+data.pattern_dur_wk(data.p_con_pattern_duration=='2to3y') = 120;
+data.pattern_dur_wk(data.p_con_pattern_duration=='3yrs') = 144;
 
 % Pedmidas severity grade
 data.pedmidas_grade = NaN*ones(height(data),1);
@@ -87,14 +100,6 @@ Age_req = data_start(data_start.age>=6 & data_start.age<18,:);
 
 % Convert age to years
 Age_req.ageY = floor(Age_req.age);
-
-% Reorder race categories to make white (largest group) the reference group
-Age_req.race = reordercats(Age_req.race,{'white','black','asian','am_indian','pacific_island','no_answer','unk'});
-
-% Reorder ethnicity categories to make non-hispanic (largest group) the
-% reference group
-Age_req.ethnicity = reordercats(Age_req.ethnicity,{'no_hisp','hisp','no_answer','unk'});
-
 
 % Identify those with continuous headache
 Cont_req = Age_req((Age_req.p_current_ha_pattern == 'cons_flare' | Age_req.p_current_ha_pattern == 'cons_same'),:);
@@ -144,6 +149,7 @@ set(gca,'TickDir','out'); set(gca,'Box','off');
 HA.ethnicity = removecats(HA.ethnicity);
 HA.race = removecats(HA.race);
 HA.ichd3 = removecats(HA.ichd3);
+HA.p_current_ha_pattern = removecats(HA.p_current_ha_pattern);
 
 [pAge,tblAge,statsAge] = kruskalwallis(HA.age,HA.con_epi_time_cat);
 [tblSex,ChiSex,pSex] = crosstab(HA.gender,HA.con_epi_time_cat);
@@ -152,44 +158,39 @@ HA.ichd3 = removecats(HA.ichd3);
 [pSev,tblSev,statsSev] = kruskalwallis(HA.p_sev_usual,HA.con_epi_time_cat);
 [pDis,tblDis,statsDis] = kruskalwallis(HA.p_pedmidas_score,HA.con_epi_time_cat);
 [tblICHD,~,~] = crosstab(HA.ichd3,HA.con_epi_time_cat);
-[tblDur,ChiDur,pDur] = crosstab(HA.p_con_pattern_duration,HA.con_epi_time_cat);
-[pDurD,tblDurD,statsDurD] = kruskalwallis(HA.pattern_dur_days,HA.con_epi_time_cat);
-[tblPat,ChiPat,pPat] = crosstab(removecats(HA.p_current_ha_pattern),HA.con_epi_time_cat);
+[pDurD,tblDurD,statsDurD] = kruskalwallis(HA.pattern_dur_wk,HA.con_epi_time_cat);
+[tblPat,ChiPat,pPat] = crosstab(HA.p_current_ha_pattern,HA.con_epi_time_cat);
 [tblEvo,~,~] = crosstab(HA.p_con_start_epi_time,HA.con_epi_time_cat);
 [tblTrig,ChiTrig,pTrig] = crosstab(HA.triggers,HA.con_epi_time_cat);
 [tblTrigBi,ChiTrigBi,pTrigBi] = crosstab(HA.trigger_binary,HA.con_epi_time_cat);
 
 %% Compare pedmidas
-[rAge2,pAge2] = corr(HA.age(~isnan(HA.p_pedmidas_score)),HA.p_pedmidas_score(~isnan(HA.p_pedmidas_score)),'Type','Spearman');
-[pSex2,tblSex2,statsSex2] = kruskalwallis(HA.p_pedmidas_score,HA.gender);
-[pRace2,tblRace2,statsRace2] = kruskalwallis(HA.p_pedmidas_score,HA.race);
-[pEth2,tblEth2,statsEth2] = kruskalwallis(HA.p_pedmidas_score,HA.ethnicity);
-[rSev2,pSev2] = corr(HA.p_sev_usual(~isnan(HA.p_pedmidas_score) & ~isnan(HA.p_sev_usual)),HA.p_pedmidas_score(~isnan(HA.p_pedmidas_score) & ~isnan(HA.p_sev_usual)),'Type','Spearman');
-[rDurD2,pDurD2] = corr(HA.pattern_dur_days(~isnan(HA.p_pedmidas_score)),HA.p_pedmidas_score(~isnan(HA.p_pedmidas_score)),'Type','Spearman');
-[pPat2,tblPat2,statsPat2] = kruskalwallis(HA.p_pedmidas_score,HA.p_current_ha_pattern);
-[pTrig2,tblTrig2,statsTrig2] = kruskalwallis(HA.p_pedmidas_score,HA.triggers);
-[pTrigBi2,tblTrigBi2,statsTrigBi2] = kruskalwallis(HA.p_pedmidas_score,HA.trigger_binary);
-[pICHD2,tblICHD2,statsICHD2] = kruskalwallis(HA.p_pedmidas_score,HA.ichd3);
+mdl_evo = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat','RobustOpts','on');
+tbl_evo = lm_tbl_plot(mdl_evo);
+mdl_age = fitlm(HA,'p_pedmidas_score ~ age','RobustOpts','on');
+tbl_age = lm_tbl_plot(mdl_age);
+mdl_sex = fitlm(HA,'p_pedmidas_score ~ gender','RobustOpts','on');
+tbl_sex = lm_tbl_plot(mdl_sex);
+mdl_race = fitlm(HA,'p_pedmidas_score ~ race','RobustOpts','on');
+tbl_race = lm_tbl_plot(mdl_race);
+mdl_eth = fitlm(HA,'p_pedmidas_score ~ ethnicity','RobustOpts','on');
+tbl_eth = lm_tbl_plot(mdl_eth);
+mdl_sev = fitlm(HA,'p_pedmidas_score ~ p_sev_usual','RobustOpts','on');
+tbl_sev = lm_tbl_plot(mdl_sev);
+mdl_dur = fitlm(HA,'p_pedmidas_score ~ pattern_dur_wk','RobustOpts','on');
+tbl_dur = lm_tbl_plot(mdl_dur);
+mdl_pat = fitlm(HA,'p_pedmidas_score ~ p_current_ha_pattern','RobustOpts','on');
+tbl_pat = lm_tbl_plot(mdl_pat);
+mdl_trig = fitlm(HA,'p_pedmidas_score ~ trigger_binary','RobustOpts','on');
+tbl_trig = lm_tbl_plot(mdl_trig);
 
 %% Regression analysis
 
-mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + pattern_dur_days + p_sev_usual + trigger_binary','RobustOpts','on');
+mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + pattern_dur_wk + p_sev_usual + trigger_binary','RobustOpts','on');
+tbl_Full = lm_tbl_plot(mdl_evo_disability);
 
-mdl_final = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + trigger_binary','RobustOpts','on');
-% Calc95fromSE();
-%% compare missing data to non-missing data
-missdata = missdata_evo;
-missdata.missdata = ones(height(missdata),1);
-
-excludedata = exclude_cont;
-excludedata.missdata = zeros(height(excludedata),1);
-
-HA.missdata = zeros(height(HA),1);
-
-rebuild_data = [HA;missdata];
-
-mdl_miss = fitglm(rebuild_data,'missdata ~ age + gender + race + ethnicity','Distribution','binomial');
-
+mdl_final = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + race + trigger_binary','RobustOpts','on');
+tbl_Final = lm_tbl_plot(mdl_final);
 
 %% compare no, rapid, and gradual evolution of headache to continuous (3 months continuous headache only)
 
@@ -202,47 +203,4 @@ mdl_miss = fitglm(rebuild_data,'missdata ~ age + gender + race + ethnicity','Dis
 [tblPat3,ChiPat3,pPat3] = crosstab(removecats(HA3mo.p_current_ha_pattern),HA3mo.con_epi_time_cat);
 [tblEvo3,~,~] = crosstab(HA3mo.p_con_start_epi_time,HA3mo.con_epi_time_cat);
 [tblTrig3,ChiTrig3,pTrig3] = crosstab(HA3mo.triggers,HA3mo.con_epi_time_cat);
-
-%% plot model
-
-figure
-hold on
-title('Full Model')
-xlabel('Change in PedMIDAS score')
-
-varNumFull = {'trigger_binary','pattern_dur_days','con_epi_time_cat_gradual evolution','con_epi_time_cat_rapid evolution','p_sev_usual','race_unk','race_am_indian','race_asian','race_black','age','gender'};
-ax = gca; ax.Box = 'on'; ax.YTick = 1:length(varNumFull); ax.YTickLabel = varNumFull; ax.YLim = [0 length(varNumFull)+1];
-
-Err = zeros(length(varNumFull),3);
-full_model95 = zeros(length(varNumFull),3);
-for x = 1:length(varNumFull)
-    temp = Calc95fromSE(table2array(mdl_evo_disability.Coefficients(varNumFull(:,x),1)),table2array(mdl_evo_disability.Coefficients(varNumFull(:,x),2)));
-    Err(x,:) = [temp(1)  abs(diff(temp([1 2]))) abs(diff(temp([1 3])))];
-    full_model95(x,:) = temp;
-end
-full_model95 = flipud(full_model95);
-
-errorbar(Err(:,1),1:length(varNumFull),[],[],Err(:,2),Err(:,3),'ok','MarkerFaceColor','k')
-plot([0 0],[0 length(varNumFull)+1],'--k')
-
-
-figure
-hold on
-title('Final Model')
-xlabel('Change in PedMIDAS score')
-
-varNumFinal = {'trigger_binary','con_epi_time_cat_gradual evolution','con_epi_time_cat_rapid evolution','age'};
-ax = gca; ax.Box = 'on'; ax.YTick = 1:length(varNumFinal); ax.YTickLabel = varNumFinal; ax.YLim = [0 length(varNumFinal)+1]; ax.XLim = [-30 30];
-
-Err = zeros(length(varNumFinal),3);
-final_model95 = zeros(length(varNumFinal),3);
-for x = 1:length(varNumFinal)
-    temp = Calc95fromSE(table2array(mdl_final.Coefficients(varNumFinal(:,x),1)),table2array(mdl_final.Coefficients(varNumFinal(:,x),2)));
-    Err(x,:) = [temp(1)  abs(diff(temp([1 2]))) abs(diff(temp([1 3])))];
-    full_model95(x,:) = temp;
-end
-finsl_model95 = flipud(final_model95);
-
-errorbar(Err(:,1),1:length(varNumFinal),[],[],Err(:,2),Err(:,3),'ok','MarkerFaceColor','k')
-plot([0 0],[0 length(varNumFinal)+1],'--k')
 
