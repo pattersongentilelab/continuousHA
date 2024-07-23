@@ -2,7 +2,7 @@
 
 Pfizer_dataBasePath = getpref('continuousHA','pfizerDataPath');
 
-load([Pfizer_dataBasePath 'PfizerHAdataJun23.mat'])
+load([Pfizer_dataBasePath 'PfizerHAdataMay24.mat'])
 addpath '/Users/pattersonc/Documents/MATLAB/commonFx'
 addpath '/Users/pattersonc/Documents/MATLAB/headacheDx'
 
@@ -35,7 +35,6 @@ data.ICHD_data = sum(table2array(ICHD3(:,2:40)),2);
 data.race_full = data.race;
 data.race = reordercats(data.race,{'white','black','asian','am_indian','pacific_island','no_answer','unk'});
 data.race = mergecats(data.race,{'am_indian','pacific_island','no_answer','unk'},'other');
-data.race(data.race=='other') = '<undefined>';
 data.race = removecats(data.race);
 
 % Reorder ethnicity categories to make non-hispanic (largest group) the
@@ -92,21 +91,27 @@ data.trigger_binary(data.triggers~='none') = 1;
 % Find participants, 6 to 17 years old with continuous headache, without
 % PTH or NDPH
 
-data_recent = data(data.visit_dt>datetime(2022,11,01),:);
+data_recent = data(data.visit_dt>=datetime(2022,11,01),:);
 
-data_start = data_recent(data_recent.p_current_ha_pattern == 'cons_flare' | data_recent.p_current_ha_pattern == 'cons_same' | data_recent.p_current_ha_pattern == 'episodic',:);
+data_age = data_recent(data_recent.age>=6 & data_recent.age<18,:);
 
-Age_req = data_start(data_start.age>=6 & data_start.age<18,:);
+data_start = data_age(data_age.p_current_ha_pattern == 'cons_flare' | data_age.p_current_ha_pattern == 'cons_same' | data_age.p_current_ha_pattern == 'episodic',:);
+
+
 
 % Convert age to years
-Age_req.ageY = floor(Age_req.age);
+data_start.ageY = floor(data_start.age);
 
 % Identify those with continuous headache
-Cont_req = Age_req((Age_req.p_current_ha_pattern == 'cons_flare' | Age_req.p_current_ha_pattern == 'cons_same'),:);
-exclude_cont =  Age_req(Age_req.p_current_ha_pattern=='episodic',:);
+Cont_req = data_start((data_start.p_current_ha_pattern == 'cons_flare' | data_start.p_current_ha_pattern == 'cons_same'),:);
+exclude_cont =  data_start(data_start.p_current_ha_pattern=='episodic',:);
 
-Evo_req = Cont_req(~isnan(Cont_req.con_epi_time_cat2),:);
-missdata_evo = Cont_req(isnan(Cont_req.con_epi_time_cat2),:);
+Dur_req = Cont_req(Cont_req.pattern_dur_wk~=1,:);
+
+Evo_req = Dur_req(~isnan(Dur_req.con_epi_time_cat2),:);
+missdata_evo = Dur_req(isnan(Dur_req.con_epi_time_cat2),:);
+
+
 
 HA = Evo_req;
 
@@ -186,7 +191,7 @@ tbl_trig = lm_tbl_plot(mdl_trig);
 
 %% Regression analysis
 
-mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + pattern_dur_wk + p_sev_usual + trigger_binary','RobustOpts','on');
+mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + ethnicity + pattern_dur_wk + p_sev_usual + trigger_binary','RobustOpts','on');
 tbl_Full = lm_tbl_plot(mdl_evo_disability);
 
 mdl_final = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + race + trigger_binary','RobustOpts','on');
