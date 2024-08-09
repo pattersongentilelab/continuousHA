@@ -191,11 +191,8 @@ tbl_trig = lm_tbl_plot(mdl_trig);
 
 %% Regression analysis
 
-mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + gender + race + ethnicity + pattern_dur_wk + p_sev_usual + trigger_binary','RobustOpts','on');
-tbl_Full = lm_tbl_plot(mdl_evo_disability);
-
-mdl_final = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + age + race + trigger_binary','RobustOpts','on');
-tbl_Final = lm_tbl_plot(mdl_final);
+mdl_evo_disability = fitlm(HA,'p_pedmidas_score ~ con_epi_time_cat + p_current_ha_pattern + age + gender + race + ethnicity + pattern_dur_wk + p_sev_usual + trigger_binary','RobustOpts','on');
+tbl_Adj = lm_tbl_plot(mdl_evo_disability);
 
 %% compare no, rapid, and gradual evolution of headache to continuous (3 months continuous headache only)
 
